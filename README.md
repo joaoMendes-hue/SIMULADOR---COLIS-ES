@@ -1,171 +1,146 @@
-# Simulação de Colisões entre Esferas
+import pygame
+import random
+import math
 
-## Descrição
+# -------------------------
+# Configurações
+# -------------------------
+WIDTH = 800
+HEIGHT = 600
 
-Este projeto implementa uma simulação computacional de colisões elásticas entre esferas ("bolas de sinuca") em duas dimensões utilizando Python e Pygame.
+N_BOLAS = 15
+RAIO = 15
 
-As esferas possuem posições e velocidades iniciais aleatórias e se movimentam dentro de uma região retangular limitada por paredes. Durante a simulação, são detectadas e tratadas colisões entre as esferas e entre as esferas e as paredes, atualizando suas velocidades de acordo com as leis da mecânica clássica.
+FPS = 60
 
-O objetivo é demonstrar conceitos de dinâmica, conservação da quantidade de movimento e colisões elásticas por meio de uma visualização gráfica em tempo real.
+# -------------------------
+# Classe Bola
+# -------------------------
+class Bola:
 
----
+    def __init__(self):
+        self.x = random.randint(RAIO, WIDTH - RAIO)
+        self.y = random.randint(RAIO, HEIGHT - RAIO)
 
-## Funcionalidades
+        self.vx = random.uniform(-150, 150)
+        self.vy = random.uniform(-150, 150)
 
-* Simulação em tempo real.
-* Inicialização aleatória das posições das esferas.
-* Inicialização aleatória das velocidades.
-* Colisões elásticas entre esferas.
-* Colisões com as paredes da janela.
-* Atualização contínua das posições utilizando integração numérica.
-* Interface gráfica desenvolvida com Pygame.
+        self.raio = RAIO
 
----
+        self.cor = (
+            random.randint(50,255),
+            random.randint(50,255),
+            random.randint(50,255)
+        )
 
-## Fundamentos Físicos
+    def mover(self, dt):
 
-A posição de cada esfera é atualizada a cada intervalo de tempo Δt segundo:
+        self.x += self.vx * dt
+        self.y += self.vy * dt
 
-x(novo) = x(atual) + vx · Δt
+        # paredes verticais
+        if self.x - self.raio <= 0:
+            self.x = self.raio
+            self.vx *= -1
 
-y(novo) = y(atual) + vy · Δt
+        if self.x + self.raio >= WIDTH:
+            self.x = WIDTH - self.raio
+            self.vx *= -1
 
-onde:
+        # paredes horizontais
+        if self.y - self.raio <= 0:
+            self.y = self.raio
+            self.vy *= -1
 
-* x e y representam as coordenadas da esfera;
-* vx e vy representam as componentes da velocidade;
-* Δt representa o passo temporal da simulação.
+        if self.y + self.raio >= HEIGHT:
+            self.y = HEIGHT - self.raio
+            self.vy *= -1
 
-As colisões são consideradas perfeitamente elásticas, preservando:
+    def desenhar(self, tela):
+        pygame.draw.circle(
+            tela,
+            self.cor,
+            (int(self.x), int(self.y)),
+            self.raio
+        )
 
-* Quantidade de movimento;
-* Energia cinética.
+# -------------------------
+# Colisão entre bolas
+# -------------------------
+def colisao(b1, b2):
 
----
+    dx = b2.x - b1.x
+    dy = b2.y - b1.y
 
-## Estrutura do Projeto
+    dist = math.sqrt(dx*dx + dy*dy)
 
-```text
-simulacao-colisoes/
-│
-├── simulacao.py
-├── README.md
-└── requirements.txt
-```
+    if dist == 0:
+        return
 
----
+    if dist < b1.raio + b2.raio:
 
-## Requisitos
+        nx = dx / dist
+        ny = dy / dist
 
-* Python 3.11 ou superior
-* Pygame
+        dvx = b1.vx - b2.vx
+        dvy = b1.vy - b2.vy
 
----
+        vel_rel = dvx*nx + dvy*ny
 
-## Instalação
+        if vel_rel > 0:
+            return
 
-Clone o repositório:
+        impulso = -2 * vel_rel / 2
 
-```bash
-git clone https://github.com/SEU_USUARIO/simulacao-colisoes.git
-```
+        b1.vx += impulso * nx
+        b1.vy += impulso * ny
 
-Entre na pasta:
+        b2.vx -= impulso * nx
+        b2.vy -= impulso * ny
 
-```bash
-cd simulacao-colisoes
-```
+        # separa as bolas para evitar sobreposição
+        overlap = (b1.raio + b2.raio) - dist
 
-Instale as dependências:
+        b1.x -= overlap * nx / 2
+        b1.y -= overlap * ny / 2
 
-```bash
-python -m pip install pygame
-```
+        b2.x += overlap * nx / 2
+        b2.y += overlap * ny / 2
 
----
+# -------------------------
+# Programa principal
+# -------------------------
+pygame.init()
 
-## Execução
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Simulação de Colisões")
 
-Execute o programa com:
+clock = pygame.time.Clock()
 
-```bash
-python simulacao.py
-```
+bolas = [Bola() for _ in range(N_BOLAS)]
 
-Ao iniciar, uma janela será aberta automaticamente e a simulação começará imediatamente.
+running = True
 
----
+while running:
 
-## Parâmetros da Simulação
+    dt = clock.tick(FPS) / 1000.0
 
-Os principais parâmetros podem ser modificados diretamente no código:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
 
-| Parâmetro | Descrição                        |
-| --------- | -------------------------------- |
-| WIDTH     | Largura da janela                |
-| HEIGHT    | Altura da janela                 |
-| N_BOLAS   | Número de esferas                |
-| RAIO      | Raio das esferas                 |
-| FPS       | Taxa de atualização da simulação |
+    for bola in bolas:
+        bola.mover(dt)
 
----
+    for i in range(N_BOLAS):
+        for j in range(i + 1, N_BOLAS):
+            colisao(bolas[i], bolas[j])
 
-## Algoritmo Utilizado
+    screen.fill((20,20,20))
 
-Para cada passo da simulação:
+    for bola in bolas:
+        bola.desenhar(screen)
 
-1. Atualizar a posição de cada esfera.
-2. Verificar colisões com as paredes.
-3. Verificar colisões entre pares de esferas.
-4. Atualizar as velocidades das esferas envolvidas.
-5. Corrigir eventuais sobreposições.
-6. Redesenhar a cena na janela.
+    pygame.display.flip()
 
-A detecção de colisões entre esferas utiliza a distância entre os centros das partículas.
-
----
-
-## Complexidade Computacional
-
-A verificação de colisões entre esferas é realizada comparando todos os pares possíveis.
-
-Complexidade:
-
-```text
-O(N²)
-```
-
-onde N é o número de esferas presentes na simulação.
-
----
-
-## Tecnologias Utilizadas
-
-* Python
-* Pygame
-* Matemática Vetorial
-* Mecânica Clássica
-
----
-
-## Possíveis Melhorias
-
-* Simulação em 3D.
-* Diferentes massas para as esferas.
-* Controle de atrito.
-* Interface para alteração de parâmetros.
-* Leitura de configurações por arquivo externo.
-* Otimização da detecção de colisões para grandes quantidades de partículas.
-
----
-
-## Autor
-
-Nome: João Victor Mendes De Oliveira 
-
-Disciplina: Física 1 / Simulação de Sistemas Físicos
-
-Instituição: UTFPR
-
-Ano: 2026
-
+pygame.quit()
